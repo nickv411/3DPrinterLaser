@@ -3,8 +3,11 @@ from PIL import Image
 # TODO: take filename from command line
 # TODO: take all values from user input
 
+# CURRENT INPUT -> OUTPUT
+# Engraves image that is the (pixels / 10) in millimeters
+
 # convert to greyscale
-img = Image.open('greyscaletest.png').convert("L")
+img = Image.open('testmeg.png').convert("L")
 #img.save("testout.png", quality=100)
 
 # Get size of image
@@ -33,7 +36,7 @@ START_Y = 11.5
 START_Z = 25.0
 
 # Set Cutting Rate
-CUT_RATE = 350
+CUT_RATE = 300
 # Set Travel Rate
 TRAVEL_RATE = 3000
 
@@ -41,6 +44,8 @@ TRAVEL_RATE = 3000
 MAX_POWER = 200
 # Set min power
 MIN_POWER = 30
+# Set percent power
+PERCENT_POWER = 0.1
 
 # Set minimum value to ignore (0 is white, 255 is black)
 IGNORE_UNDER = 25
@@ -99,14 +104,14 @@ max_y = START_Y + height  # TODO: make the height based on img list not image
 inc_by = 1 / PIX_PER_MM
 
 # Start lasering
-
+out_list = reversed(out_list)
 for row in out_list:
     # Turn on laser
     curr_x = START_X
     gcode_out.write("G1 F" + str(CUT_RATE) + "\n")  # Set cut rate
     for col in row:
         if col > IGNORE_UNDER:
-            gcode_out.write("M106 " + str(col) + "\n")  # Set laser to power level
+            gcode_out.write("M106 " + str(int(col * PERCENT_POWER)) + "\n")  # Set laser to power level
         else:
             gcode_out.write("M107\n")
         gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
