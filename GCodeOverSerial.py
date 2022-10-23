@@ -19,7 +19,7 @@ def command(ser, command):
     while True:
         line = ser.readline()
         print(str(start_time) + " : " + str(line.decode()))
-
+        time.sleep(0.004)
         if line == b'ok\n':
             break
 
@@ -54,12 +54,12 @@ ser = serial.Serial('COM3', 115200)
 
 command(ser, "G0 X65 Y11 Z25 F3000\r\n")  # Move to start for laser
 """
-command(ser, "M106 255\r\n")  # Turn on laser
+#command(ser, "M106 255\r\n")  # Turn on laser
 """
 #command(ser, "G1 X120 Y75 F250\r\n")  # Move laser
 """command(ser, "M107\r\n")  # Shut off laser"""
 try:
-    file_executor(file_reader("test.gcode"))
+    file_executor(file_reader("output.gcode"))
 except KeyboardInterrupt:
 #file_reader("test.gcode")
     command(ser, "M107\r\n")
