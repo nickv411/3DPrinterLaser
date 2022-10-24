@@ -1,5 +1,25 @@
 from PIL import Image
 
+
+class Col:
+    def __init__(self, in_col):
+        self.value = in_col
+        self.first = False
+        self.last = False
+
+
+class Row:
+    def __init__(self, in_row):
+        self.row = in_row
+        self.zero = False
+        self.firstX = START_X
+
+    def set_zero(self, zero_val):
+        self.zero = zero_val
+
+    def is_zero(self):
+        return self.zero
+
 # TODO: take filename from command line
 # TODO: take all values from user input
 
@@ -7,7 +27,7 @@ from PIL import Image
 # Engraves image that is the (pixels / 10) in millimeters
 
 # convert to greyscale
-img = Image.open('testmeg.png').convert("L")
+img = Image.open('test123.png').convert("L")
 #img.save("testout.png", quality=100)
 
 # Get size of image
@@ -86,8 +106,9 @@ out_list = []
 for row in img_list:
     out_row = []
     for col in row:
-        out_row.append(255 - col)
-    out_list.append(out_row)
+        out_row.append(Col(255 - col))
+    new_row = Row(out_row)
+    out_list.append(new_row)
 
 # make gcode file for output
 gcode_out = open("output.gcode", "w", encoding="UTF-8")
@@ -104,19 +125,68 @@ max_y = START_Y + height  # TODO: make the height based on img list not image
 inc_by = 1 / PIX_PER_MM
 
 # Start lasering
-out_list = reversed(out_list)
-for row in out_list:
-    # Turn on laser
-    curr_x = START_X
-    gcode_out.write("G1 F" + str(CUT_RATE) + "\n")  # Set cut rate
-    for col in row:
-        if col > IGNORE_UNDER:
-            gcode_out.write("M106 " + str(int(col * PERCENT_POWER)) + "\n")  # Set laser to power level
-        else:
-            gcode_out.write("M107\n")
-        gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
-        curr_x += inc_by
-    gcode_out.write("M107\n")  # Turn laser off to move to next row
-    curr_y += inc_by
-    gcode_out.write("G1 X" + str(START_X) + " Y" + str(format(curr_y, ".1f")) + " F" + str(TRAVEL_RATE) + "\n")
 
+for row in out_list:
+    found_first = False
+    curr_x = START_X
+    curr_last = Col(0)
+    for col in row.row:
+        if col.value > IGNORE_UNDER:
+            row.set_zero(False)
+            if not found_first:
+                col.first = True
+                found_first = True
+                row.firstX = curr_x
+            curr_last = col
+        curr_x += inc_by
+    rev_row_row = list(reversed(row.row))
+    for col in rev_row_row:  # Get last
+        if col.value > IGNORE_UNDER:
+            col.last = True
+            break
+    row.row = list(reversed(rev_row_row))
+
+out_list = list(reversed(out_list))
+
+for row in out_list:
+    # Skip if zero
+    if not row.is_zero():
+        gcode_out.write("M107\n")
+        gcode_out.write("G1 X" + str(format(row.firstX, ".1f")) + " Y" + str(format(curr_y, ".1f")) + " F" + str(TRAVEL_RATE) + "\n")
+        # Turn on laser
+        curr_x = START_X
+
+        first_found = False
+        for col in row.row:
+            if col.first:  # Skip if not first
+                if not first_found:
+                    first_found = True
+                    gcode_out.write("G1 F" + str(CUT_RATE) + "\n")
+                if col.value > IGNORE_UNDER:
+                    gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
+                    gcode_out.write("M106 " + str(int(col.value * PERCENT_POWER)) + "\n")  # Set laser to power level
+                else:
+                    gcode_out.write("M107\n")
+                    gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
+            elif col.last:
+                gcode_out.write("G1 F" + str(CUT_RATE) + "\n")  # Set cut rate
+                gcode_out.write("M106 " + str(int(col.value * PERCENT_POWER)) + "\n")  # Set laser to power level
+                gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
+                break  # Exit row
+            elif first_found:
+                if col.value > IGNORE_UNDER:
+                    gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
+                    gcode_out.write("M106 " + str(int(col.value * PERCENT_POWER)) + "\n")  # Set laser to power level
+                else:
+                    gcode_out.write("M107\n")
+                    gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + "\n")  # Move
+            #else:
+             #   gcode_out.write("M107\n")
+              #  gcode_out.write("G1 X" + str(format(curr_x, ".1f")) + " F" + str(TRAVEL_RATE) + "\n")  # Move quickly to first
+            curr_x += inc_by
+        #gcode_out.write("M107\n")  # Turn laser off to move to next row
+
+
+    curr_y += inc_by
+
+gcode_out.write("M107\n")  # Turn laser off at end
